@@ -37,6 +37,10 @@ module.exports = (sequelize) => {
         isEmail: {
           msg: '"Email address" must be valid'
         }
+      },
+      unique: {
+        args: true,
+        msg: 'Email address already in use'
       }
     }, 
     password: {
@@ -52,6 +56,7 @@ module.exports = (sequelize) => {
 
   User.associate = (models) => {
     User.hasMany(models.Course, {
+      as: 'student', //alias
       foreignKey: {
         fieldName: 'userId',
         allowNull: false,

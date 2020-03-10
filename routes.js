@@ -106,7 +106,17 @@ router.post('/users', asyncHandler(async (req, res, next) => {
 // Returns a list of courses
 
 router.get('/courses', asyncHandler(async (req,res) => {
-  const courses = await Course.findAll({order: [["title", "ASC"]]})
+  const courses = await Course.findAll({
+    order: [["title", "ASC"]],
+    attributes: ['id', 'title', 'description', 'estimatedTime', 'materialsNeeded'],
+    include: [
+      {
+        model: User,
+        attributes: ['id', 'firstName', 'lastName', 'emailAddress'],
+        as: 'student',
+      }
+    ],
+  });
   res.json(courses);
 }));
 
@@ -114,7 +124,12 @@ router.get('/courses', asyncHandler(async (req,res) => {
 
 router.get('/courses/:id', asyncHandler(async (req,res) => {
   const id = req.params.id;
-  let course = await Course.findByPk(id)
+  let course = await Course.findAll({
+    where: {
+      id: id
+    },
+    attributes: ['id', 'title', 'description', 'estimatedTime', 'materialsNeeded'],
+  })
 
   if (course) {
     res.json(course);
@@ -167,9 +182,14 @@ router.put('/courses/:id', authenticateUser, [
 
     try {
       course = await Course.findByPk(req.params.id);
-      if (course) {
+      const user = req.currentUser;
+      const ownerUser = await User.findByPk(course.userId);
+
+      if (course && user.id === ownerUser.id) {
         await course.update(req.body);
         res.status(204).end();
+      } else if (user.id !== ownerUser.id) {
+        res.status(403).json({ message: "Owner doesn't own the requested course" });
       } else {
         res.status(404).json({ message: "Error - course not found" });
       }
@@ -190,9 +210,14 @@ router.put('/courses/:id', authenticateUser, [
 
 router.delete('/courses/:id', authenticateUser, asyncHandler(async (req, res) => {
   const course = await Course.findByPk(req.params.id);
-  if (course) {
+  const user = req.currentUser;
+  const ownerUser = await User.findByPk(course.userId);
+
+  if (course && user.id === ownerUser.id) {
     await course.destroy();
     res.status(204).end();
+  } else if (user.id !== ownerUser.id) {
+    res.status(403).json({ message: "Owner doesn't own the requested course" });
   } else {
     res.status(404).json({message: "Error - course not found"});
   }
